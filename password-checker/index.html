@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Password Strength Checker</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e8eef7;
+      --muted: #8b9bb4;
+      --border: #2a3a52;
+      --weak: #e85d4c;
+      --medium: #e6b325;
+      --strong: #3dcc8a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+      font-family: system-ui, Segoe UI, sans-serif;
+      background: radial-gradient(ellipse at top, #1c2a40, var(--bg));
+      color: var(--text);
+    }
+
+    .card {
+      width: min(100%, 420px);
+      padding: 1.75rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 { font-size: 1.35rem; margin-bottom: 0.35rem; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.25rem; }
+
+    label { display: block; font-size: 0.85rem; margin-bottom: 0.4rem; color: var(--muted); }
+
+    .field {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    input[type="password"],
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 0.7rem 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #121a26;
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    input:focus {
+      outline: 2px solid #4d7ec8;
+      outline-offset: 1px;
+    }
+
+    button {
+      flex-shrink: 0;
+      padding: 0 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #243044;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    button:hover { background: #2d3c54; }
+
+    .meter {
+      height: 8px;
+      border-radius: 999px;
+      background: #121a26;
+      overflow: hidden;
+      margin-bottom: 0.6rem;
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      transition: width 0.2s ease, background 0.2s ease;
+    }
+
+    .label { font-weight: 600; min-height: 1.4em; margin-bottom: 1rem; }
+    .label.weak { color: var(--weak); }
+    .label.medium { color: var(--medium); }
+    .label.strong { color: var(--strong); }
+
+    ul {
+      list-style: none;
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    li.ok { color: var(--strong); }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Password Strength Checker</h1>
+    <p class="sub">Type a password to see how strong it is. Nothing is sent anywhere.</p>
+
+    <label for="password">Password</label>
+    <div class="field">
+      <input id="password" type="password" autocomplete="new-password" spellcheck="false" />
+      <button id="toggle" type="button" aria-pressed="false">Show</button>
+    </div>
+
+    <div class="meter" aria-hidden="true"><span id="bar"></span></div>
+    <p id="strength" class="label" aria-live="polite"></p>
+
+    <ul id="rules">
+      <li data-rule="length">At least 8 characters</li>
+      <li data-rule="lower">Lowercase letter</li>
+      <li data-rule="upper">Uppercase letter</li>
+      <li data-rule="number">Number</li>
+      <li data-rule="symbol">Symbol (!@#$…)</li>
+    </ul>
+  </main>
+
+  <script>
+    const input = document.getElementById("password");
+    const toggle = document.getElementById("toggle");
+    const bar = document.getElementById("bar");
+    const strengthEl = document.getElementById("strength");
+    const rules = document.getElementById("rules");
+
+    const checks = {
+      length: (p) => p.length >= 8,
+      lower: (p) => /[a-z]/.test(p),
+      upper: (p) => /[A-Z]/.test(p),
+      number: (p) => /\d/.test(p),
+      symbol: (p) => /[^A-Za-z0-9]/.test(p),
+    };
+
+    function score(password) {
+      let n = 0;
+      for (const key in checks) if (checks[key](password)) n++;
+      if (password.length >= 12) n++;
+      return n;
+    }
+
+    function update() {
+      const password = input.value;
+
+      for (const li of rules.children) {
+        li.classList.toggle("ok", checks[li.dataset.rule](password));
+      }
+
+      if (!password) {
+        bar.style.width = "0";
+        bar.style.background = "transparent";
+        strengthEl.textContent = "";
+        strengthEl.className = "label";
+        return;
+      }
+
+      const n = score(password);
+      let level = "Weak";
+      let cls = "weak";
+      let width = "33%";
+      let color = "var(--weak)";
+
+      if (n >= 6) {
+        level = "Strong";
+        cls = "strong";
+        width = "100%";
+        color = "var(--strong)";
+      } else if (n >= 4) {
+        level = "Medium";
+        cls = "medium";
+        width = "66%";
+        color = "var(--medium)";
+      }
+
+      bar.style.width = width;
+      bar.style.background = color;
+      strengthEl.textContent = level;
+      strengthEl.className = "label " + cls;
+    }
+
+    toggle.addEventListener("click", () => {
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      toggle.textContent = show ? "Hide" : "Show";
+      toggle.setAttribute("aria-pressed", String(show));
+    });
+
+    input.addEventListener("input", update);
+    update();
+  </script>
+</body>
+</html>
